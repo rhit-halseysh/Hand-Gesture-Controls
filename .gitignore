@@ -44,3 +44,8 @@ hand_landmarker.task
 # Project specific
 *.log
 .env
+data/*
+annotations.json
+exported_images.json
+minimal-annotations.json
+features.npz
