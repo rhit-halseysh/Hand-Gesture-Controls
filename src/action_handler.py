@@ -26,6 +26,8 @@ class ActionHandler:
         self.palm_position_history = deque(maxlen=10)
         self.last_scroll_time = 0
         self.scroll_cooldown = 0.1  # Seconds between scrolls
+        self.last_gesture_time = 0
+        self.gesture_cooldown = 2.0  # Seconds between gesture commands
         
         # Register default actions
         self._register_default_actions()
@@ -35,10 +37,11 @@ class ActionHandler:
     
     def _register_default_actions(self):
         """Register default gesture-to-action mappings."""
-        self.register_gesture_action(Gesture.SCROLL_UP, self._scroll_up)
-        self.register_gesture_action(Gesture.SCROLL_DOWN, self._scroll_down)
+        self.register_gesture_action(Gesture.FIST, self._fist_action)
         self.register_gesture_action(Gesture.OPEN_PALM, self._open_palm_action)
+        self.register_gesture_action(Gesture.PEACE, self._peace_action)
         self.register_gesture_action(Gesture.POINTING, self._pointing_action)
+        self.register_gesture_action(Gesture.THUMBS_UP, self._thumbs_up_action)
         
         if self.debug:
             print("[ActionHandler] Registered default actions")
@@ -63,7 +66,14 @@ class ActionHandler:
             gesture: Recognized gesture.
             hand_data: Hand data dictionary (optional, for context).
         """
+        current_time = time.time()
+        if current_time - self.last_gesture_time < self.gesture_cooldown:
+            if self.debug:
+                print(f"[ActionHandler] Gesture on cooldown - skipping {gesture.value}")
+            return
+        
         if gesture in self.gesture_actions:
+            self.last_gesture_time = current_time
             if self.debug:
                 print(f"[ActionHandler] Executing action for {gesture.value}")
             self.gesture_actions[gesture](hand_data)
@@ -108,6 +118,36 @@ class ActionHandler:
     
     # Default action implementations
     
+    def _fist_action(self, hand_data: dict = None):
+        """Fist gesture - press { key."""
+        if self.debug:
+            print("[ActionHandler] Fist detected - pressing {")
+        pyautogui.hotkey('shift', '[')  # Press {
+    
+    def _open_palm_action(self, hand_data: dict = None):
+        """Open palm gesture - press } key."""
+        if self.debug:
+            print("[ActionHandler] Open palm detected - pressing }")
+        pyautogui.hotkey('shift', ']')  # Press }
+    
+    def _peace_action(self, hand_data: dict = None):
+        """Peace sign gesture - press \ key."""
+        if self.debug:
+            print("[ActionHandler] Peace sign detected - pressing \\")
+        pyautogui.press('backslash')  # Press \
+    
+    def _pointing_action(self, hand_data: dict = None):
+        """Pointing gesture - press / key."""
+        if self.debug:
+            print("[ActionHandler] Pointing detected - pressing /")
+        pyautogui.hotkey('shift', '/')  # Press /
+    
+    def _thumbs_up_action(self, hand_data: dict = None):
+        """Thumbs up gesture - press ; key."""
+        if self.debug:
+            print("[ActionHandler] Thumbs up detected - pressing ;")
+        pyautogui.press(';')  # Press ;
+    
     def _scroll_up(self, hand_data: dict = None):
         """Scroll up action."""
         current_time = time.time()
@@ -129,16 +169,6 @@ class ActionHandler:
         if self.debug:
             print("[ActionHandler] Scrolling DOWN")
         pyautogui.scroll(-3)  # Scroll down 3 clicks
-    
-    def _open_palm_action(self, hand_data: dict = None):
-        """Open palm action (placeholder)."""
-        if self.debug:
-            print("[ActionHandler] Open palm detected")
-    
-    def _pointing_action(self, hand_data: dict = None):
-        """Pointing action (placeholder)."""
-        if self.debug:
-            print("[ActionHandler] Pointing detected")
     
     def move_mouse_to_hand(self, palm_position: tuple, frame_width: int, frame_height: int):
         """

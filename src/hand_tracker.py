@@ -28,9 +28,6 @@ class HandTracker:
         """
         self.debug = debug
         self.detector = None
-        self.hands_obj = None
-        self.mp_hands = None
-        self.mp_drawing = None
         
         # Try to load the model, download if necessary
         self._setup_model()
@@ -40,42 +37,20 @@ class HandTracker:
     
     def _setup_model(self):
         """Setup hand detection model, downloading if necessary."""
-        try:
-            # Check if model file exists, if not download it
-            if not os.path.exists(self.MODEL_PATH):
-                if self.debug:
-                    print(f"[HandTracker] Downloading model from {self.MODEL_URL}...")
-                urllib.request.urlretrieve(self.MODEL_URL, self.MODEL_PATH)
-                if self.debug:
-                    print("[HandTracker] Model downloaded successfully")
-            
-            # Try to create hand landmarker with Tasks API
-            base_options = python.BaseOptions(model_asset_path=self.MODEL_PATH)
-            options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
-            self.detector = vision.HandLandmarker.create_from_options(options)
+        # Check if model file exists, if not download it
+        if not os.path.exists(self.MODEL_PATH):
             if self.debug:
-                print("[HandTracker] Using MediaPipe Tasks API")
-        except Exception as e:
+                print(f"[HandTracker] Downloading model from {self.MODEL_URL}...")
+            urllib.request.urlretrieve(self.MODEL_URL, self.MODEL_PATH)
             if self.debug:
-                print(f"[HandTracker] Tasks API failed: {e}, trying legacy API...")
-            
-            # Fallback to legacy API
-            try:
-                from mediapipe import solutions
-                self.mp_hands = solutions.hands
-                self.mp_drawing = solutions.drawing_utils
-                self.hands_obj = self.mp_hands.Hands(
-                    static_image_mode=False,
-                    max_num_hands=2,
-                    min_detection_confidence=0.7,
-                    min_tracking_confidence=0.5
-                )
-                if self.debug:
-                    print("[HandTracker] Using legacy MediaPipe API")
-            except (ImportError, AttributeError) as e2:
-                if self.debug:
-                    print(f"[HandTracker] Legacy API also failed: {e2}")
-                    print("[HandTracker] WARNING: Hand detection not available")
+                print("[HandTracker] Model downloaded successfully")
+        
+        # Create hand landmarker with Tasks API
+        base_options = python.BaseOptions(model_asset_path=self.MODEL_PATH)
+        options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
+        self.detector = vision.HandLandmarker.create_from_options(options)
+        if self.debug:
+            print("[HandTracker] Using MediaPipe Tasks API")
     
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[List[dict]]]:
         """
@@ -98,91 +73,38 @@ class HandTracker:
             # Convert BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Try new Tasks API first
-            if hasattr(self, 'detector') and self.detector is not None:
-                try:
-                    image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-                    results = self.detector.detect(image)
+            # Process with Tasks API
+            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            results = self.detector.detect(image)
+            
+            if results.hand_landmarks and results.handedness:
+                h, w, _ = frame.shape
+                for hand_landmarks, handedness in zip(results.hand_landmarks, results.handedness):
+                    hand_label = handedness[0].category_name
+                    hand_confidence = handedness[0].score
                     
-                    if results.hand_landmarks and results.handedness:
-                        h, w, _ = frame.shape
-                        for hand_landmarks, handedness in zip(results.hand_landmarks, results.handedness):
-                            hand_label = handedness[0].category_name
-                            hand_confidence = handedness[0].score
-                            
-                            landmark_list = []
-                            for landmark in hand_landmarks:
-                                x = int(landmark.x * w)
-                                y = int(landmark.y * h)
-                                z = landmark.z
-                                landmark_list.append((x, y, z))
-                            
-                            hand_data = {
-                                'label': hand_label,
-                                'confidence': hand_confidence,
-                                'landmarks': landmark_list,
-                                'palm_position': self._get_palm_position(landmark_list),
-                                'fingers_up': self._get_fingers_up(landmark_list)
-                            }
-                            hand_data_list.append(hand_data)
-                            
-                            if self.debug:
-                                print(f"[HandTracker] Detected {hand_label} hand - Confidence: {hand_confidence:.2f}")
-                            
-                            self._draw_landmarks(annotated_frame, landmark_list)
+                    landmark_list = []
+                    for landmark in hand_landmarks:
+                        x = int(landmark.x * w)
+                        y = int(landmark.y * h)
+                        z = landmark.z
+                        landmark_list.append((x, y, z))
                     
-                    return annotated_frame, hand_data_list if hand_data_list else None
-                except Exception as e:
+                    hand_data = {
+                        'label': hand_label,
+                        'confidence': hand_confidence,
+                        'landmarks': landmark_list,
+                        'palm_position': self._get_palm_position(landmark_list),
+                        'fingers_up': self._get_fingers_up(landmark_list)
+                    }
+                    hand_data_list.append(hand_data)
+                    
                     if self.debug:
-                        print(f"[HandTracker] Error in Tasks API: {e}")
-            
-            # Fallback to legacy API
-            if hasattr(self, 'hands_obj') and self.hands_obj is not None:
-                try:
-                    results = self.hands_obj.process(rgb_frame)
+                        print(f"[HandTracker] Detected {hand_label} hand - Confidence: {hand_confidence:.2f}")
                     
-                    if results.multi_hand_landmarks and results.multi_handedness:
-                        h, w, _ = frame.shape
-                        for landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
-                            hand_label = handedness.classification[0].label
-                            hand_confidence = handedness.classification[0].score
-                            
-                            landmark_list = []
-                            for landmark in landmarks.landmark:
-                                x = int(landmark.x * w)
-                                y = int(landmark.y * h)
-                                z = landmark.z
-                                landmark_list.append((x, y, z))
-                            
-                            hand_data = {
-                                'label': hand_label,
-                                'confidence': hand_confidence,
-                                'landmarks': landmark_list,
-                                'palm_position': self._get_palm_position(landmark_list),
-                                'fingers_up': self._get_fingers_up(landmark_list)
-                            }
-                            hand_data_list.append(hand_data)
-                            
-                            if self.debug:
-                                print(f"[HandTracker] Detected {hand_label} hand - Confidence: {hand_confidence:.2f}")
-                            
-                            if self.mp_drawing and self.mp_hands:
-                                self.mp_drawing.draw_landmarks(
-                                    annotated_frame,
-                                    landmarks,
-                                    self.mp_hands.HAND_CONNECTIONS
-                                )
-                    
-                    return annotated_frame, hand_data_list if hand_data_list else None
-                except Exception as e:
-                    if self.debug:
-                        print(f"[HandTracker] Error in legacy API: {e}")
+                    self._draw_landmarks(annotated_frame, landmark_list)
             
-            # If we reach here, no detector was available, return empty frame
-            if self.debug:
-                print("[HandTracker] No hand detector available")
-            
-            return annotated_frame, None
+            return annotated_frame, hand_data_list if hand_data_list else None
         
         except Exception as e:
             if self.debug:
@@ -265,18 +187,5 @@ class HandTracker:
     
     def release(self):
         """Release resources."""
-        try:
-            if hasattr(self, 'hands_obj') and self.hands_obj:
-                self.hands_obj.close()
-        except:
-            pass
-        if self.debug:
-            print("[HandTracker] Released resources")
-        """Release resources."""
-        try:
-            if hasattr(self, 'hands_obj') and self.hands_obj:
-                self.hands_obj.close()
-        except:
-            pass
         if self.debug:
             print("[HandTracker] Released resources")
