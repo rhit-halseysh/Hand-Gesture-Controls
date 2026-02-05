@@ -28,9 +28,16 @@ document.addEventListener('keydown', function (event) {
     } else if (event.ctrlKey && event.altKey && event.key === 'l') {
         // Like short
         console.log('Ctrl+Alt+L key combination pressed!');
+        document.querySelector('button[aria-label*="like this video"]')?.click();
     } else if (event.ctrlKey && event.altKey && event.key === 'd') {
         // Dislike short
         console.log('Ctrl+Alt+D key combination pressed!');
+        document.querySelector('button[aria-label*="Dislike this video"]')?.click();
+    } else if (event.ctrlKey && event.altKey && event.key === 'r') {
+        // Remove like/dislike short
+        console.log('Ctrl+Alt+R key combination pressed!');
+        document.querySelector('button[aria-label*="Dislike this video"]')?.click();
+        document.querySelector('button[aria-label*="Dislike this video"]')?.click();
     } else if (event.ctrlKey && event.altKey && event.key === 'x') {
         // Close comment section
         console.log('Ctrl+Alt+X key combination pressed!');
