@@ -33,7 +33,7 @@ class ResNetRecognizer:
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         
-        print(f"✓ Model loaded with classes: {self.classes}")
+        print(f"Model loaded with classes: {self.classes}")
     
     def recognize(self, image):
         """

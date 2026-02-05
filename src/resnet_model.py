@@ -27,7 +27,7 @@ def save_model(model, filepath, class_names):
         'model_state': model.state_dict(),
         'classes': class_names
     }, filepath)
-    print(f"✓ Model saved to {filepath}")
+    print(f"Model saved to {filepath}")
 
 
 def load_model(filepath, num_classes):

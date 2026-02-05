@@ -140,10 +140,10 @@ def train_model(data_dir, epochs, batch_size, learning_rate):
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             save_model(model, 'models/best_model.pth', classes)
-            print(f"  ✓ New best model! ({val_acc:.1f}%)")
+            print(f"New best model! ({val_acc:.1f}%)")
     
     print("\n" + "="*50)
-    print(f"Training complete! Best validation accuracy: {best_val_acc:.1f}%")
+    print(f"Training finished...\n Best validation accuracy: {best_val_acc:.1f}%")
     print("="*50)
 
 
