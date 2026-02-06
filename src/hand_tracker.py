@@ -18,6 +18,7 @@ class HandTracker:
     
     MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
     MODEL_PATH = "hand_landmarker.task"
+    model_path='models/best_model.pth'
     
     def __init__(self, debug: bool = False):
         """

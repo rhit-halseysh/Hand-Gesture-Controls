@@ -5,7 +5,7 @@ import torch
 from torchvision import transforms
 import cv2
 
-from src.resnet_model import load_model
+from resnet_model import load_model
 
 
 class ResNetRecognizer:

@@ -16,7 +16,7 @@ from src.resnet_model import GestureResNet, save_model
 DATA_DIR = 'dataset'               # Path to dataset with train/ and val/ folders
 EPOCHS = 20                         # Number of training epochs
 BATCH_SIZE = 32                     # Batch size for training
-LEARNING_RATE = 0.01              # Learning rate
+LEARNING_RATE = 0.001              # Learning rate
 # ======================================================================
 
 
@@ -43,8 +43,8 @@ def get_data_loaders(data_dir, batch_size=32):
     val_dataset = datasets.ImageFolder(os.path.join(data_dir, 'val'), transform=val_transform)
     
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
     
     return train_loader, val_loader, train_dataset.classes
 
@@ -57,7 +57,7 @@ def train_epoch(model, loader, criterion, optimizer, device):
     total = 0
     
     for images, labels in loader:
-        images, labels = images.to(device), labels.to(device)
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
         optimizer.zero_grad()
         outputs = model(images)
@@ -82,7 +82,7 @@ def validate(model, loader, criterion, device):
     
     with torch.no_grad():
         for images, labels in loader:
-            images, labels = images.to(device), labels.to(device)
+            images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -107,6 +107,7 @@ def train_model(data_dir, epochs, batch_size, learning_rate):
     """
     # Setup
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_num_threads(os.cpu_count())
     print(f"Using device: {device}")
     
     # Load data
