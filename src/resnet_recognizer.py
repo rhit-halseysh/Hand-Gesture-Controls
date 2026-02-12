@@ -9,7 +9,7 @@ from resnet_model import load_model
 
 
 class ResNetRecognizer:
-    """Recognize gestures using trained ResNet-18 model."""
+    """Recognize gestures using trained ResNet-50 model."""
     
     def __init__(self, model_path='models/best_model.pth'):
         """
