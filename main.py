@@ -8,7 +8,7 @@ import time
 import sys
 from typing import Optional
 from src.hand_tracker import HandTracker
-from src.gesture_recognizer import GestureRecognizer, Gesture
+from src.resnet_recognizer import ResNetRecognizer
 from src.action_handler import ActionHandler
 from src.ui import GestureTrackerUI
 
@@ -29,7 +29,7 @@ class GestureTrackerApp:
         
         # Components
         self.hand_tracker: Optional[HandTracker] = None
-        self.gesture_recognizer: Optional[GestureRecognizer] = None
+        self.recognizer: Optional[ResNetRecognizer] = None
         self.action_handler: Optional[ActionHandler] = None
         self.ui: Optional[GestureTrackerUI] = None
         
@@ -38,7 +38,7 @@ class GestureTrackerApp:
         self.is_tracking = False
         self.cap: Optional[cv2.VideoCapture] = None
         self.frame_times = []
-        self.current_gesture = Gesture.UNKNOWN
+        self.current_gesture = "no_gesture"  # Changed to string
         
         if self.debug:
             print("[GestureTrackerApp] Initializing...")
@@ -48,12 +48,13 @@ class GestureTrackerApp:
     def _initialize_components(self):
         """Initialize all application components."""
         try:
-            # Initialize hand tracker
-            self.hand_tracker = HandTracker(debug=self.debug)
+            # Initialize hand tracker (for landmarks/drawing only)
+            self.hand_tracker = HandTracker(debug=self.debug, use_gesture_recognition=False)
             print("✓ Hand tracker initialized")
             
-            # Initialize gesture recognizer
-            self.gesture_recognizer = GestureRecognizer(debug=self.debug)
+            # Initialize gesture recognizer (exactly like test_model.py)
+            model_path = 'models/best_model.pth'
+            self.recognizer = ResNetRecognizer(model_path)
             print("✓ Gesture recognizer initialized")
             
             # Initialize action handler
@@ -116,6 +117,13 @@ class GestureTrackerApp:
                 
                 # Process frame only if tracking is enabled
                 if self.is_tracking:
+                    # Mirror the frame (exactly like test_model.py)
+                    frame = cv2.flip(frame, 1)
+                    
+                    # Recognize gesture on full frame (exactly like test_model.py)
+                    gesture, gesture_confidence = self.recognizer.recognize(frame)
+                    
+                    # Run hand tracker for landmark drawing only
                     try:
                         frame, hand_data_list = self.hand_tracker.process_frame(frame)
                     except Exception as e:
@@ -127,35 +135,20 @@ class GestureTrackerApp:
                     hand_count = len(hand_data_list) if hand_data_list else 0
                     self.ui.update_hands_count(hand_count)
                     
-                    # Process each detected hand
-                    if hand_data_list:
-                        for hand_data in hand_data_list:
-                            # Recognize gesture
-                            gesture = self.gesture_recognizer.recognize(hand_data)
-                            self.current_gesture = gesture
-                            
-                            # Update palm position for motion tracking
-                            palm_pos = hand_data['palm_position']
-                            self.action_handler.update_palm_position(palm_pos)
-                            
-                            # Detect vertical motion for scrolling
-                            motion = self.action_handler.detect_vertical_motion()
-                            
-                            # Execute gesture actions or motion-based actions
-                            if gesture == Gesture.OPEN_PALM and motion == 'up':
-                                self.action_handler.handle_gesture(Gesture.SCROLL_UP, hand_data)
-                            elif gesture == Gesture.OPEN_PALM and motion == 'down':
-                                self.action_handler.handle_gesture(Gesture.SCROLL_DOWN, hand_data)
-                            elif gesture != Gesture.UNKNOWN:
-                                self.action_handler.handle_gesture(gesture, hand_data)
-                            
-                            if self.debug and gesture != Gesture.UNKNOWN:
-                                print(f"Gesture: {gesture.value}, Motion: {motion}")
+                    # Update UI with gesture and confidence
+                    self.ui.update_gesture(gesture, gesture_confidence)
                     
-                    # Update UI gesture display
-                    self.ui.update_gesture(self.current_gesture.value)
+                    # Only trigger actions with high confidence and accepted gestures
+                    if gesture_confidence > 0.7 and gesture in self.action_handler.gesture_actions:
+                        self.current_gesture = gesture
+                        self.action_handler.handle_gesture(gesture)
+                        
+                        if self.debug:
+                            print(f"Gesture: {gesture} (confidence: {gesture_confidence:.3f})")
+                    else:
+                        self.current_gesture = gesture
                 else:
-                    self.ui.update_gesture("--")
+                    self.ui.update_gesture("--", 0.0)
                 
                 # Calculate and display FPS
                 frame_time = time.time() - frame_start_time

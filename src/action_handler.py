@@ -6,7 +6,6 @@ Executes actions based on recognized gestures.
 import pyautogui
 import time
 from typing import Callable, Dict
-from .gesture_recognizer import Gesture
 from collections import deque
 import numpy as np
 
@@ -22,64 +21,89 @@ class ActionHandler:
             debug: If True, prints debug information.
         """
         self.debug = debug
-        self.gesture_actions: Dict[Gesture, Callable] = {}
+        self.gesture_actions: Dict[str, Callable] = {}  # Changed to string keys
         self.palm_position_history = deque(maxlen=10)
         self.last_scroll_time = 0
         self.scroll_cooldown = 0.1  # Seconds between scrolls
         self.last_gesture_time = 0
         self.gesture_cooldown = 2.0  # Seconds between gesture commands
         
-        # Register default actions
-        self._register_default_actions()
+        # Register gesture mappings for YouTube Shorts
+        self._register_youtube_actions()
         
         if self.debug:
             print("[ActionHandler] Initialized")
     
-    def _register_default_actions(self):
-        """Register default gesture-to-action mappings."""
-        self.register_gesture_action(Gesture.FIST, self._fist_action)
-        self.register_gesture_action(Gesture.OPEN_PALM, self._open_palm_action)
-        self.register_gesture_action(Gesture.PEACE, self._peace_action)
-        self.register_gesture_action(Gesture.POINTING, self._pointing_action)
-        self.register_gesture_action(Gesture.THUMBS_UP, self._thumbs_up_action)
+    def _register_youtube_actions(self):
+        """Register gesture-to-YouTube action mappings."""
+        # Navigation gestures
+        self.register_gesture_action('peace', self._next_short)  # Peace -> Next short
+        self.register_gesture_action('peace_inverted', self._previous_short)  # Inverted peace -> Previous short
+        self.register_gesture_action('palm', self._previous_short)  # Palm -> Previous short
+        
+        # Interaction gestures
+        self.register_gesture_action('like', self._like_video)  # Like gesture -> Like video
+        self.register_gesture_action('dislike', self._dislike_video)  # Dislike gesture -> Dislike video
+        self.register_gesture_action('thumbs_up', self._like_video)  # Thumbs up -> Like video (alternative)
+        
+        # Comment actions
+        self.register_gesture_action('call', self._open_comments)  # Call gesture -> Open comments
+        self.register_gesture_action('mute', self._close_comments)  # Mute gesture -> Close comments
+        self.register_gesture_action('stop', self._close_comments)  # Stop gesture -> Close comments
+        
+        # Number gestures for navigation
+        self.register_gesture_action('one', self._select_comment_box)  # One finger -> Select comment box
+        self.register_gesture_action('two_up', self._post_comment)  # Two fingers up -> Post comment
+        
+        # Special gestures
+        self.register_gesture_action('ok', self._remove_like_dislike)  # OK gesture -> Remove like/dislike
+        self.register_gesture_action('fist', self._pause_play)  # Open palm -> Pause/Play
+        # self.register_gesture_action('fist', self._take_screenshot)  # Fist -> Take screenshot
+        
+        # Heart gestures for liking
+        self.register_gesture_action('hand_heart', self._like_video)  # Heart -> Like video
+        self.register_gesture_action('hand_heart2', self._like_video)  # Heart variant -> Like video
+        
+        # Rock/metal gesture for special actions
+        self.register_gesture_action('rock', self._fullscreen_toggle)  # Rock gesture -> Fullscreen
         
         if self.debug:
-            print("[ActionHandler] Registered default actions")
+            print(f"[ActionHandler] Registered {len(self.gesture_actions)} YouTube gesture actions")
     
-    def register_gesture_action(self, gesture: Gesture, action: Callable):
+    def register_gesture_action(self, gesture: str, action: Callable):
         """
         Register a callback for a gesture.
         
         Args:
-            gesture: Gesture enum.
+            gesture: Gesture name string.
             action: Callable that executes the action.
         """
         self.gesture_actions[gesture] = action
         if self.debug:
-            print(f"[ActionHandler] Registered action for {gesture.value}")
+            print(f"[ActionHandler] Registered action for {gesture}")
     
-    def handle_gesture(self, gesture: Gesture, hand_data: dict = None):
+    def handle_gesture(self, gesture: str, hand_data: dict = None):
         """
         Execute action for a recognized gesture.
         
         Args:
-            gesture: Recognized gesture.
+            gesture: Recognized gesture name string.
             hand_data: Hand data dictionary (optional, for context).
         """
         current_time = time.time()
         if current_time - self.last_gesture_time < self.gesture_cooldown:
             if self.debug:
-                print(f"[ActionHandler] Gesture on cooldown - skipping {gesture.value}")
+                print(f"[ActionHandler] Gesture on cooldown - skipping {gesture}")
             return
         
         if gesture in self.gesture_actions:
             self.last_gesture_time = current_time
             if self.debug:
-                print(f"[ActionHandler] Executing action for {gesture.value}")
+                print(f"[ActionHandler] Executing action for {gesture}")
             self.gesture_actions[gesture](hand_data)
         else:
             if self.debug:
-                print(f"[ActionHandler] No action registered for {gesture.value}")
+                print(f"[ActionHandler] No action registered for {gesture}")
     
     def update_palm_position(self, palm_position: tuple):
         """
@@ -116,37 +140,79 @@ class ActionHandler:
         else:
             return 'none'
     
-    # Default action implementations
+    # YouTube Shorts action implementations (matching content.js)
     
-    def _fist_action(self, hand_data: dict = None):
-        """Fist gesture - press { key."""
+    def _next_short(self, hand_data: dict = None):
+        """Next short - Ctrl+Alt+Y."""
         if self.debug:
-            print("[ActionHandler] Fist detected - pressing {")
-        pyautogui.hotkey('shift', '[')  # Press {
+            print("[ActionHandler] Next short gesture - Ctrl+Alt+Y")
+        pyautogui.hotkey('ctrl', 'alt', 'y')
     
-    def _open_palm_action(self, hand_data: dict = None):
-        """Open palm gesture - press } key."""
+    def _previous_short(self, hand_data: dict = None):
+        """Previous short - Ctrl+Alt+T."""
         if self.debug:
-            print("[ActionHandler] Open palm detected - pressing }")
-        pyautogui.hotkey('shift', ']')  # Press }
+            print("[ActionHandler] Previous short gesture - Ctrl+Alt+T")
+        pyautogui.hotkey('ctrl', 'alt', 't')
     
-    def _peace_action(self, hand_data: dict = None):
-        """Peace sign gesture - press \ key."""
+    def _like_video(self, hand_data: dict = None):
+        """Like video - Ctrl+Alt+L."""
         if self.debug:
-            print("[ActionHandler] Peace sign detected - pressing \\")
-        pyautogui.press('backslash')  # Press \
+            print("[ActionHandler] Like video gesture - Ctrl+Alt+L")
+        pyautogui.hotkey('ctrl', 'alt', 'l')
     
-    def _pointing_action(self, hand_data: dict = None):
-        """Pointing gesture - press / key."""
+    def _dislike_video(self, hand_data: dict = None):
+        """Dislike video - Ctrl+Alt+D."""
         if self.debug:
-            print("[ActionHandler] Pointing detected - pressing /")
-        pyautogui.hotkey('shift', '/')  # Press /
+            print("[ActionHandler] Dislike video gesture - Ctrl+Alt+D")
+        pyautogui.hotkey('ctrl', 'alt', 'd')
     
-    def _thumbs_up_action(self, hand_data: dict = None):
-        """Thumbs up gesture - press ; key."""
+    def _remove_like_dislike(self, hand_data: dict = None):
+        """Remove like/dislike - Ctrl+Alt+R."""
         if self.debug:
-            print("[ActionHandler] Thumbs up detected - pressing ;")
-        pyautogui.press(';')  # Press ;
+            print("[ActionHandler] Remove like/dislike gesture - Ctrl+Alt+R")
+        pyautogui.hotkey('ctrl', 'alt', 'r')
+    
+    def _open_comments(self, hand_data: dict = None):
+        """Open comments - Ctrl+Alt+C."""
+        if self.debug:
+            print("[ActionHandler] Open comments gesture - Ctrl+Alt+C")
+        pyautogui.hotkey('ctrl', 'alt', 'c')
+    
+    def _close_comments(self, hand_data: dict = None):
+        """Close comments - Ctrl+Alt+X."""
+        if self.debug:
+            print("[ActionHandler] Close comments gesture - Ctrl+Alt+X")
+        pyautogui.hotkey('ctrl', 'alt', 'x')
+    
+    def _select_comment_box(self, hand_data: dict = None):
+        """Select comment box - Ctrl+Alt+B."""
+        if self.debug:
+            print("[ActionHandler] Select comment box gesture - Ctrl+Alt+B")
+        pyautogui.hotkey('ctrl', 'alt', 'b')
+    
+    def _post_comment(self, hand_data: dict = None):
+        """Post comment - Ctrl+Alt+V."""
+        if self.debug:
+            print("[ActionHandler] Post comment gesture - Ctrl+Alt+V")
+        pyautogui.hotkey('ctrl', 'alt', 'v')
+    
+    def _pause_play(self, hand_data: dict = None):
+        """Pause/Play - Space bar."""
+        if self.debug:
+            print("[ActionHandler] Pause/Play gesture - Space")
+        pyautogui.press('space')
+    
+    def _take_screenshot(self, hand_data: dict = None):
+        """Take screenshot action."""
+        if self.debug:
+            print("[ActionHandler] Take screenshot gesture")
+        pyautogui.hotkey('win', 'shift', 's')
+    
+    def _fullscreen_toggle(self, hand_data: dict = None):
+        """Toggle fullscreen - F key."""
+        if self.debug:
+            print("[ActionHandler] Fullscreen toggle gesture - F")
+        pyautogui.press('f')
     
     def _scroll_up(self, hand_data: dict = None):
         """Scroll up action."""

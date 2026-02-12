@@ -87,13 +87,45 @@ class GestureTrackerUI:
         )
         self.gesture_label.grid(row=4, column=1, sticky=tk.E, pady=5)
         
+        # Confidence level info
+        confidence_label = ttk.Label(
+            main_frame,
+            text="Confidence:",
+            font=("Arial", 10, "bold")
+        )
+        confidence_label.grid(row=5, column=0, sticky=tk.W, pady=5)
+        
+        self.confidence_label = ttk.Label(
+            main_frame,
+            text="0%",
+            font=("Arial", 10),
+            foreground="orange"
+        )
+        self.confidence_label.grid(row=5, column=1, sticky=tk.E, pady=5)
+        
+        # Confidence level info
+        confidence_label = ttk.Label(
+            main_frame,
+            text="Confidence:",
+            font=("Arial", 10, "bold")
+        )
+        confidence_label.grid(row=5, column=0, sticky=tk.W, pady=5)
+        
+        self.confidence_label = ttk.Label(
+            main_frame,
+            text="0%",
+            font=("Arial", 10),
+            foreground="orange"
+        )
+        self.confidence_label.grid(row=5, column=1, sticky=tk.E, pady=5)
+        
         # Frame rate info
         fps_label = ttk.Label(
             main_frame,
             text="FPS:",
             font=("Arial", 10, "bold")
         )
-        fps_label.grid(row=5, column=0, sticky=tk.W, pady=5)
+        fps_label.grid(row=6, column=0, sticky=tk.W, pady=5)
         
         self.fps_label = ttk.Label(
             main_frame,
@@ -101,7 +133,7 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="green"
         )
-        self.fps_label.grid(row=5, column=1, sticky=tk.E, pady=5)
+        self.fps_label.grid(row=6, column=1, sticky=tk.E, pady=5)
         
         # Hand count info
         hands_label = ttk.Label(
@@ -109,7 +141,7 @@ class GestureTrackerUI:
             text="Hands Detected:",
             font=("Arial", 10, "bold")
         )
-        hands_label.grid(row=6, column=0, sticky=tk.W, pady=5)
+        hands_label.grid(row=7, column=0, sticky=tk.W, pady=5)
         
         self.hands_label = ttk.Label(
             main_frame,
@@ -117,7 +149,7 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="purple"
         )
-        self.hands_label.grid(row=6, column=1, sticky=tk.E, pady=5)
+        self.hands_label.grid(row=7, column=1, sticky=tk.E, pady=5)
         
         # Instructions
         instructions_frame = ttk.LabelFrame(main_frame, text="Instructions", padding="5")
@@ -170,9 +202,23 @@ class GestureTrackerUI:
         """
         self.on_toggle_callback = callback
     
-    def update_gesture(self, gesture_name: str):
-        """Update displayed gesture."""
+    def update_gesture(self, gesture_name: str, confidence: float = 0.0):
+        """Update displayed gesture and confidence."""
         self.gesture_label.config(text=gesture_name)
+        
+        # Update confidence with color coding
+        confidence_percent = confidence * 100
+        confidence_text = f"{confidence_percent:.1f}%"
+        
+        # Color code confidence level
+        if confidence >= 0.8:
+            color = "green"  # High confidence
+        elif confidence >= 0.6:
+            color = "orange"  # Medium confidence  
+        else:
+            color = "red"  # Low confidence
+            
+        self.confidence_label.config(text=confidence_text, foreground=color)
     
     def update_fps(self, fps: float):
         """Update displayed FPS."""
