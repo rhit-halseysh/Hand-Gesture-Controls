@@ -49,3 +49,4 @@ annotations.json
 exported_images.json
 minimal-annotations.json
 features.npz
+asl/*
