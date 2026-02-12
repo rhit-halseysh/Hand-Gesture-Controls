@@ -1,7 +1,7 @@
 {
     "name": "CSSE463 Doom Scroll Extension",
     "description": "CSSE463 Final Project Extension",
-    "version": "0.2.5",
+    "version": "1.0.0",
     "manifest_version": 3,
     "permissions": [
         "tabs"
@@ -20,8 +20,17 @@
             "run_at": "document_idle"
         }
     ],
+    "icons": {
+        "16": "images/brainrot-16.png",
+        "48": "images/brainrot-48.png",
+        "128": "images/brainrot-128.png"
+    },
     "action": {
         "default_popup": "popup/popup.html",
-        "default_icon": "images/boutell.png"
+        "default_icon": {
+            "16": "images/brainrot-16.png",
+            "48": "images/brainrot-48.png",
+            "128": "images/brainrot-128.png"
+        }
     }
 }
