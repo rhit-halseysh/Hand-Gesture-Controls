@@ -1,7 +1,7 @@
 {
     "name": "CSSE463 Doom Scroll Extension",
     "description": "CSSE463 Final Project Extension",
-    "version": "0.2",
+    "version": "0.2.5",
     "manifest_version": 3,
     "permissions": [
         "tabs"
