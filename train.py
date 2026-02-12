@@ -1,5 +1,5 @@
 """
-Training script for ResNet-18 gesture recognition.
+Training script for ResNet-50 gesture recognition.
 Usage: python train.py
 """
 import torch
@@ -12,11 +12,11 @@ import os
 from src.resnet_model import GestureResNet, save_model
 
 
-# ========== TRAINING PARAMETERS (Edit these before running) ==========
+# ========== TRAINING PARAMETERS ==========
 DATA_DIR = 'dataset'               # Path to dataset with train/ and val/ folders
-EPOCHS = 20                         # Number of training epochs
+EPOCHS = 30                         # Number of training epochs
 BATCH_SIZE = 32                     # Batch size for training
-LEARNING_RATE = 0.001              # Learning rate
+LEARNING_RATE = 0.01              # Learning rate
 # ======================================================================
 
 
@@ -119,7 +119,7 @@ def train_model(data_dir, epochs, batch_size, learning_rate):
     # Create model
     model = GestureResNet(num_classes=len(classes)).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
     
     # Training loop
     best_val_acc = 0
