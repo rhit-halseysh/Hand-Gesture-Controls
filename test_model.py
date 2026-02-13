@@ -16,7 +16,7 @@ def main():
     """Run webcam test with gesture recognition."""
     # Load model
     print("Loading model...")
-    model_path = 'models/resnet18.pth'
+    model_path = 'models/best_model.pth'
     
     if not os.path.exists(model_path):
         print(f"Error: Model not found at {model_path}")

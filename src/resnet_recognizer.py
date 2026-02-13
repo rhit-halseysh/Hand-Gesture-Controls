@@ -18,12 +18,16 @@ class ResNetRecognizer:
         Args:
             model_path: Path to saved model file
         """
+        # Setup device
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
         # Load checkpoint
         checkpoint = torch.load(model_path, map_location='cpu')
         self.classes = checkpoint['classes']
         
-        # Load model
+        # Load model and move to device
         self.model, _ = load_model(model_path, len(self.classes))
+        self.model = self.model.to(self.device)
         
         # Image preprocessing
         self.transform = transforms.Compose([
@@ -34,6 +38,7 @@ class ResNetRecognizer:
         ])
         
         print(f"Model loaded with classes: {self.classes}")
+        print(f"Running on: {self.device}")
     
     def recognize(self, image):
         """
@@ -49,7 +54,7 @@ class ResNetRecognizer:
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         # Preprocess and predict
-        img_tensor = self.transform(image_rgb).unsqueeze(0)
+        img_tensor = self.transform(image_rgb).unsqueeze(0).to(self.device)
         
         with torch.no_grad():
             output = self.model(img_tensor)
