@@ -7,6 +7,111 @@ from PIL import Image
 import os
 from tqdm import tqdm
 import numpy as np
+import shutil
+from pathlib import Path
+from sklearn.model_selection import train_test_split
+
+def split_dataset(source_dir, output_dir, train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15, seed=42):
+    """
+    Split the gesture dataset into train/valid/test sets
+    
+    Args:
+        source_dir: Root/gestures/ directory containing class folders
+        output_dir: Output directory for split datasets
+        train_ratio: Proportion for training set
+        valid_ratio: Proportion for validation set
+        test_ratio: Proportion for test set
+        seed: Random seed for reproducibility
+    """
+    assert abs(train_ratio + valid_ratio + test_ratio - 1.0) < 0.001, "Ratios must sum to 1.0"
+    
+    np.random.seed(seed)
+    source_path = Path(source_dir)
+    output_path = Path(output_dir)
+    
+    # Create output directories
+    for split in ['train', 'valid', 'test']:
+        split_dir = output_path / split
+        split_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\n{'='*60}")
+    print(f"Splitting dataset from {source_dir}")
+    print(f"Train: {train_ratio*100:.0f}%, Valid: {valid_ratio*100:.0f}%, Test: {test_ratio*100:.0f}%")
+    print('='*60)
+    
+    total_images = 0
+    class_stats = {}
+    
+    # Process each class folder
+    for class_folder in sorted(source_path.iterdir()):
+        if not class_folder.is_dir():
+            continue
+        
+        class_name = class_folder.name
+        print(f"\nProcessing class: {class_name}")
+        
+        # Get all image files
+        image_files = []
+        for ext in ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']:
+            image_files.extend(list(class_folder.glob(ext)))
+        
+        if len(image_files) == 0:
+            print(f"  Warning: No images found in {class_name}")
+            continue
+        
+        # Shuffle
+        image_files = list(image_files)
+        np.random.shuffle(image_files)
+        
+        # Calculate split indices
+        n_images = len(image_files)
+        n_train = int(n_images * train_ratio)
+        n_valid = int(n_images * valid_ratio)
+        
+        train_files = image_files[:n_train]
+        valid_files = image_files[n_train:n_train + n_valid]
+        test_files = image_files[n_train + n_valid:]
+        
+        # Copy files to appropriate directories
+        for split, files in [('train', train_files), ('valid', valid_files), ('test', test_files)]:
+            split_dir = output_path / split
+            for i, img_file in enumerate(files):
+                # Create filename: ClassLetter_originalname.ext
+                new_name = f"{class_name}_{img_file.name}"
+                dest_path = split_dir / new_name
+                shutil.copy2(img_file, dest_path)
+        
+        class_stats[class_name] = {
+            'total': n_images,
+            'train': len(train_files),
+            'valid': len(valid_files),
+            'test': len(test_files)
+        }
+        
+        total_images += n_images
+        
+        print(f"  Total: {n_images} images")
+        print(f"  Train: {len(train_files)}, Valid: {len(valid_files)}, Test: {len(test_files)}")
+    
+    print(f"\n{'='*60}")
+    print("DATASET SPLIT SUMMARY")
+    print('='*60)
+    print(f"Total classes: {len(class_stats)}")
+    print(f"Total images: {total_images}")
+    
+    total_train = sum(s['train'] for s in class_stats.values())
+    total_valid = sum(s['valid'] for s in class_stats.values())
+    total_test = sum(s['test'] for s in class_stats.values())
+    
+    print(f"\nTrain set: {total_train} images ({100*total_train/total_images:.1f}%)")
+    print(f"Valid set: {total_valid} images ({100*total_valid/total_images:.1f}%)")
+    print(f"Test set: {total_test} images ({100*total_test/total_images:.1f}%)")
+    
+    print(f"\nDataset saved to: {output_dir}")
+    print('='*60)
+    
+    return class_stats
+
 
 # Custom Dataset class for ASL images
 class ASLDataset(Dataset):
@@ -52,7 +157,7 @@ class ASLDataset(Dataset):
 
 def create_model(num_classes, model_name='resnet50', pretrained=True, freeze_layers=True):
     if model_name == 'resnet18':
-        model = models.resnet18(pretrained=pretrained)
+        model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
         num_features = model.fc.in_features
         
         if freeze_layers:
@@ -68,7 +173,7 @@ def create_model(num_classes, model_name='resnet50', pretrained=True, freeze_lay
         )
         
     elif model_name == 'resnet34':
-        model = models.resnet34(pretrained=pretrained)
+        model = models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1 if pretrained else None)
         num_features = model.fc.in_features
         
         if freeze_layers:
@@ -84,7 +189,7 @@ def create_model(num_classes, model_name='resnet50', pretrained=True, freeze_lay
         )
         
     elif model_name == 'resnet50':
-        model = models.resnet50(pretrained=pretrained)
+        model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None)
         num_features = model.fc.in_features
         
         if freeze_layers:
@@ -103,7 +208,7 @@ def create_model(num_classes, model_name='resnet50', pretrained=True, freeze_lay
         )
         
     elif model_name == 'efficientnet_b0':
-        model = models.efficientnet_b0(pretrained=pretrained)
+        model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1 if pretrained else None)
         num_features = model.classifier[1].in_features
         
         if freeze_layers:
@@ -188,7 +293,7 @@ def validate(model, valid_loader, criterion, device):
 
 def train_model(model, train_loader, valid_loader, criterion, optimizer, scheduler, epochs, device, use_amp=True):
     best_val_acc = 0
-    patience = 5
+    patience = 7
     patience_counter = 0
     
     os.makedirs('models', exist_ok=True)
@@ -290,26 +395,48 @@ def test_model(model, test_loader, device, idx_to_label):
 
 
 def main():
-    TRAIN_DIR = 'asl/train'
-    VALID_DIR = 'asl/valid'
-    TEST_DIR = 'asl/test'
+    # ============ CONFIGURATION ============
+    # Source dataset location
+    SOURCE_GESTURES_DIR = 'Root/gestures'  # Update this path
+    OUTPUT_SPLIT_DIR = 'asl_split'  # Where to save train/valid/test splits
+    
+    # Split ratios
+    TRAIN_RATIO = 0.7
+    VALID_RATIO = 0.15
+    TEST_RATIO = 0.15
     
     # Model selection: 'resnet18', 'resnet34', 'resnet50', 'efficientnet_b0'
-    MODEL_NAME = 'resnet50'
+    MODEL_NAME = 'resnet18'
     FREEZE_LAYERS = False
     
     # Training hyperparameters
     BATCH_SIZE = 32
-    NUM_EPOCHS = 50
+    NUM_EPOCHS = 12
     INITIAL_LR = 0.001
     WEIGHT_DECAY = 0.0001
     USE_AMP = True
     
-    MODEL_SAVE_PATH = 'asl_resnet50_model.pth'
+    MODEL_SAVE_PATH = 'asl_resnet18_model.pth'
     # =======================================
     
-    device = torch.device('cuda:5' if torch.cuda.is_available() else 'cpu')
+    # Step 1: Split the dataset (only run once)
+    if not os.path.exists(OUTPUT_SPLIT_DIR):
+        print("Splitting dataset...")
+        split_dataset(SOURCE_GESTURES_DIR, OUTPUT_SPLIT_DIR, 
+                     TRAIN_RATIO, VALID_RATIO, TEST_RATIO)
+    else:
+        print(f"Using existing split at {OUTPUT_SPLIT_DIR}")
+        print("Delete this directory to re-split the dataset")
+    
+    # Define paths to split datasets
+    TRAIN_DIR = os.path.join(OUTPUT_SPLIT_DIR, 'train')
+    VALID_DIR = os.path.join(OUTPUT_SPLIT_DIR, 'valid')
+    TEST_DIR = os.path.join(OUTPUT_SPLIT_DIR, 'test')
+    
+    # Setup device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_num_threads(os.cpu_count())
+    print(f"\n{'='*60}")
     print(f"Using device: {device}")
     print(f"Number of CPU threads: {os.cpu_count()}")
     print(f"Model: {MODEL_NAME}")
@@ -318,7 +445,9 @@ def main():
     if torch.cuda.is_available():
         print(f"CUDA Device: {torch.cuda.get_device_name(0)}")
         print(f"CUDA Version: {torch.version.cuda}")
+    print('='*60)
     
+    # Data transforms
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),

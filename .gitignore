@@ -49,4 +49,5 @@ annotations.json
 exported_images.json
 minimal-annotations.json
 features.npz
-asl/*
+asl_split/*
+Root/*
