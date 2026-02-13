@@ -1,5 +1,5 @@
 """
-Training script for ResNet-50 gesture recognition.
+Training script for CNN gesture recognition.
 Usage: python train.py
 """
 import torch
@@ -16,7 +16,7 @@ from src.resnet_model import GestureResNet, save_model
 DATA_DIR = 'dataset'               # Path to dataset with train/ and val/ folders
 EPOCHS = 30                         # Number of training epochs
 BATCH_SIZE = 32                     # Batch size for training
-LEARNING_RATE = 0.01              # Learning rate
+LEARNING_RATE = 0.0001              # Learning rate (lower for AdamW)
 # ======================================================================
 
 
@@ -119,7 +119,8 @@ def train_model(data_dir, epochs, batch_size, learning_rate):
     # Create model
     model = GestureResNet(num_classes=len(classes)).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
     
     # Training loop
     best_val_acc = 0
@@ -140,8 +141,9 @@ def train_model(data_dir, epochs, batch_size, learning_rate):
         # Save best model
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            save_model(model, 'models/best_model.pth', classes)
+            save_model(model, 'models/resnet18.pth', classes)
             print(f"New best model! ({val_acc:.1f}%)")
+        scheduler.step(val_acc)
     
     print("\n" + "="*50)
     print(f"Training finished...\n Best validation accuracy: {best_val_acc:.1f}%")

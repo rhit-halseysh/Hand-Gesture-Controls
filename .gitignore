@@ -49,3 +49,5 @@ annotations.json
 exported_images.json
 minimal-annotations.json
 features.npz
+hagrid-export_2000_images/
+dataset/

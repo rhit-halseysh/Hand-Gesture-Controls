@@ -1,5 +1,5 @@
 """
-Gesture recognizer using trained ResNet model.
+Gesture recognizer using trained ResNet-18 model.
 """
 import torch
 from torchvision import transforms
@@ -9,9 +9,9 @@ from src.resnet_model import load_model
 
 
 class ResNetRecognizer:
-    """Recognize gestures using trained ResNet-50 model."""
+    """Recognize gestures using trained ResNet-18 model."""
     
-    def __init__(self, model_path='models/best_model.pth'):
+    def __init__(self, model_path='models/resnet18.pth'):
         """
         Load trained model.
         

@@ -53,7 +53,7 @@ class GestureTrackerApp:
             print("✓ Hand tracker initialized")
             
             # Initialize gesture recognizer (exactly like test_model.py)
-            model_path = 'models/best_model.pth'
+            model_path = 'models/resnet18.pth'
             self.recognizer = ResNetRecognizer(model_path)
             print("✓ Gesture recognizer initialized")
             

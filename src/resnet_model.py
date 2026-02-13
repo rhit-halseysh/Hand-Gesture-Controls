@@ -1,5 +1,5 @@
 """
-ResNet-50 model for gesture recognition.
+ResNet model for gesture recognition.
 """
 import torch
 import torch.nn as nn
@@ -7,15 +7,15 @@ from torchvision import models
 
 
 class GestureResNet(nn.Module):
-    """ResNet-50 for gesture recognition using transfer learning."""
+    """ResNet18 for gesture recognition using transfer learning."""
     
     def __init__(self, num_classes=7):
         super().__init__()
-        # Load pretrained ResNet-50
-        self.model = models.resnet50(weights='DEFAULT')
+        # Load pretrained ResNet18
+        self.model = models.resnet18(weights='DEFAULT')
         
-        # Replace final layer for our gesture classes
-        self.model.fc = nn.Linear(2048, num_classes)
+        # Replace final fully connected layer for our gesture classes
+        self.model.fc = nn.Linear(512, num_classes)
     
     def forward(self, x):
         return self.model(x)
