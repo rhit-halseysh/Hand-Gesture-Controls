@@ -12,7 +12,7 @@ from typing import Callable, Optional
 class GestureTrackerUI:
     """Simple UI for controlling gesture tracker."""
     
-    def __init__(self, width: int = 400, height: int = 300, debug: bool = False):
+    def __init__(self, width: int = 450, height: int = 400, debug: bool = False):
         """
         Initialize UI.
         
@@ -25,7 +25,7 @@ class GestureTrackerUI:
         self.window = tk.Tk()
         self.window.title("Hand Gesture Tracker")
         self.window.geometry(f"{width}x{height}")
-        self.window.resizable(False, False)
+        self.window.resizable(True, True)
         
         self.is_tracking = False
         self.on_toggle_callback: Optional[Callable[[bool], None]] = None
@@ -151,9 +151,41 @@ class GestureTrackerUI:
         )
         self.hands_label.grid(row=7, column=1, sticky=tk.E, pady=5)
         
+        # Mouse control info
+        mouse_label = ttk.Label(
+            main_frame,
+            text="Mouse Control:",
+            font=("Arial", 10, "bold")
+        )
+        mouse_label.grid(row=8, column=0, sticky=tk.W, pady=5)
+        
+        self.mouse_control_label = ttk.Label(
+            main_frame,
+            text="OFF",
+            font=("Arial", 10),
+            foreground="red"
+        )
+        self.mouse_control_label.grid(row=8, column=1, sticky=tk.E, pady=5)
+        
+        # Landmarks info
+        landmarks_label = ttk.Label(
+            main_frame,
+            text="Landmarks:",
+            font=("Arial", 10, "bold")
+        )
+        landmarks_label.grid(row=9, column=0, sticky=tk.W, pady=5)
+        
+        self.landmarks_label = ttk.Label(
+            main_frame,
+            text="OFF",
+            font=("Arial", 10),
+            foreground="red"
+        )
+        self.landmarks_label.grid(row=9, column=1, sticky=tk.E, pady=5)
+        
         # Instructions
         instructions_frame = ttk.LabelFrame(main_frame, text="Instructions", padding="5")
-        instructions_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        instructions_frame.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
         instructions_text = """
 • Click "Start Tracking" to begin
@@ -161,6 +193,8 @@ class GestureTrackerUI:
 • Fist = No action
 • Open Palm = Ready
 • Motion detection for scrolling
+• Press 'm' to toggle mouse control
+• Press 'i' to toggle landmarks
         """
         
         instructions_label = ttk.Label(
@@ -182,13 +216,13 @@ class GestureTrackerUI:
         if self.is_tracking:
             self.status_label.config(text="Status: RUNNING", foreground="green")
             self.toggle_button.config(text="Stop Tracking")
-            if self.debug:
-                print("[GestureTrackerUI] Tracking started")
+            # if self.debug:
+            #     print("[GestureTrackerUI] Tracking started")
         else:
             self.status_label.config(text="Status: STOPPED", foreground="red")
             self.toggle_button.config(text="Start Tracking")
-            if self.debug:
-                print("[GestureTrackerUI] Tracking stopped")
+            # if self.debug:
+            #     print("[GestureTrackerUI] Tracking stopped")
         
         if self.on_toggle_callback:
             self.on_toggle_callback(self.is_tracking)
@@ -228,6 +262,20 @@ class GestureTrackerUI:
         """Update displayed hand count."""
         self.hands_label.config(text=str(count))
     
+    def update_mouse_control_status(self, enabled: bool):
+        """Update displayed mouse control status."""
+        if enabled:
+            self.mouse_control_label.config(text="ON", foreground="green")
+        else:
+            self.mouse_control_label.config(text="OFF", foreground="red")
+    
+    def update_landmarks_status(self, enabled: bool):
+        """Update displayed landmarks status."""
+        if enabled:
+            self.landmarks_label.config(text="ON", foreground="green")
+        else:
+            self.landmarks_label.config(text="OFF", foreground="red")
+    
     def is_active(self) -> bool:
         """Check if tracking is active."""
         return self.is_tracking
@@ -251,5 +299,5 @@ class GestureTrackerUI:
             self.window.destroy()
         except tk.TclError:
             pass
-        if self.debug:
-            print("[GestureTrackerUI] Closed")
+        # if self.debug:
+        #     print("[GestureTrackerUI] Closed")

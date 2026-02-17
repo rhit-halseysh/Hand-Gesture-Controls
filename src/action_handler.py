@@ -8,6 +8,7 @@ import time
 from typing import Callable, Dict
 from collections import deque
 import numpy as np
+from src.mouse_controller import MouseController
 
 
 class ActionHandler:
@@ -27,12 +28,20 @@ class ActionHandler:
         self.scroll_cooldown = 0.1  # Seconds between scrolls
         self.last_gesture_time = 0
         self.gesture_cooldown = 2.0  # Seconds between gesture commands
+        self.click_cooldown = 0.5  # Shorter cooldown for click gestures
+        
+        # Mouse control
+        self.mouse_controller = MouseController(debug=debug, smoothing_frames=8, sensitivity=0.35)
+        self.mouse_control_enabled = False
+        
+        # Click gestures that need shorter cooldown
+        self.click_gestures = {'grabbing', 'little_finger', 'point'}
         
         # Register gesture mappings for YouTube Shorts
         self._register_youtube_actions()
         
-        if self.debug:
-            print("[ActionHandler] Initialized")
+        # if self.debug:
+        #     print("[ActionHandler] Initialized")
     
     def _register_youtube_actions(self):
         """Register gesture-to-YouTube action mappings."""
@@ -67,8 +76,13 @@ class ActionHandler:
         # Rock/metal gesture for special actions
         self.register_gesture_action('rock', self._fullscreen_toggle)  # Rock gesture -> Fullscreen
         
+        # Mouse click gestures (work when mouse control is enabled)
+        self.register_gesture_action('grabbing', self._left_click)  # Grabbing -> Left click
+        self.register_gesture_action('little_finger', self._right_click)  # Little finger -> Right click
+        self.register_gesture_action('point', self._toggle_drag)  # Point -> Toggle drag
+        
         if self.debug:
-            print(f"[ActionHandler] Registered {len(self.gesture_actions)} YouTube gesture actions")
+            print(f"[ActionHandler] Registered {len(self.gesture_actions)} gesture actions")
     
     def register_gesture_action(self, gesture: str, action: Callable):
         """
@@ -91,7 +105,11 @@ class ActionHandler:
             hand_data: Hand data dictionary (optional, for context).
         """
         current_time = time.time()
-        if current_time - self.last_gesture_time < self.gesture_cooldown:
+        
+        # Use shorter cooldown for click gestures
+        cooldown = self.click_cooldown if gesture in self.click_gestures else self.gesture_cooldown
+        
+        if current_time - self.last_gesture_time < cooldown:
             if self.debug:
                 print(f"[ActionHandler] Gesture on cooldown - skipping {gesture}")
             return
@@ -238,24 +256,71 @@ class ActionHandler:
     
     def move_mouse_to_hand(self, palm_position: tuple, frame_width: int, frame_height: int):
         """
-        Move mouse to follow hand position (optional feature).
+        Move mouse to follow hand position with smoothing.
         
         Args:
             palm_position: Tuple of (x, y) in frame coordinates.
             frame_width: Width of the camera frame.
             frame_height: Height of the camera frame.
         """
-        screen_width, screen_height = pyautogui.size()
+        if not self.mouse_control_enabled:
+            return
         
-        # Map frame coordinates to screen coordinates
-        screen_x = int((palm_position[0] / frame_width) * screen_width)
-        screen_y = int((palm_position[1] / frame_height) * screen_height)
+        # Set frame dimensions if not already set
+        if self.mouse_controller.frame_width is None:
+            self.mouse_controller.set_frame_dimensions(frame_width, frame_height)
         
-        # Move mouse (with bounds checking)
-        screen_x = max(0, min(screen_x, screen_width - 1))
-        screen_y = max(0, min(screen_y, screen_height - 1))
-        
-        pyautogui.moveTo(screen_x, screen_y, duration=0.05)
-        
+        # Update mouse position
+        self.mouse_controller.update_mouse_position(palm_position[0], palm_position[1])
+    
+    def enable_mouse_control(self):
+        """Enable mouse control."""
+        self.mouse_control_enabled = True
         if self.debug:
-            print(f"[ActionHandler] Mouse moved to ({screen_x}, {screen_y})")
+            print("[ActionHandler] Mouse control ENABLED")
+    
+    def disable_mouse_control(self):
+        """Disable mouse control."""
+        self.mouse_control_enabled = False
+        self.mouse_controller.reset_smoothing()
+        if self.debug:
+            print("[ActionHandler] Mouse control DISABLED")
+    
+    def toggle_mouse_control(self):
+        """Toggle mouse control on/off."""
+        if self.mouse_control_enabled:
+            self.disable_mouse_control()
+        else:
+            self.enable_mouse_control()
+        return self.mouse_control_enabled
+    
+    # Mouse click actions
+    def _left_click(self, hand_data: dict = None):
+        """Perform left click (only when mouse control is enabled)."""
+        if not self.mouse_control_enabled:
+            if self.debug:
+                print("[ActionHandler] Left click ignored - mouse control disabled")
+            return
+        
+        self.mouse_controller.left_click()
+    
+    def _right_click(self, hand_data: dict = None):
+        """Perform right click (only when mouse control is enabled)."""
+        if not self.mouse_control_enabled:
+            if self.debug:
+                print("[ActionHandler] Right click ignored - mouse control disabled")
+            return
+        
+        self.mouse_controller.right_click()
+    
+    def _toggle_drag(self, hand_data: dict = None):
+        """Toggle click-and-hold drag (only when mouse control is enabled)."""
+        if not self.mouse_control_enabled:
+            if self.debug:
+                print("[ActionHandler] Drag toggle ignored - mouse control disabled")
+            return
+        
+        if self.mouse_controller.is_drag_active():
+            self.mouse_controller.stop_drag()
+        else:
+            self.mouse_controller.start_drag()

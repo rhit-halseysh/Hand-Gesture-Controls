@@ -39,9 +39,13 @@ class GestureTrackerApp:
         self.cap: Optional[cv2.VideoCapture] = None
         self.frame_times = []
         self.current_gesture = "no_gesture"  # Changed to string
+        self.frame_count = 0
+        self.last_gesture = "no_gesture"
+        self.last_gesture_confidence = 0.0
+        self.last_hand_data = None
         
-        if self.debug:
-            print("[GestureTrackerApp] Initializing...")
+        # if self.debug:
+        #     print("[GestureTrackerApp] Initializing...")
         
         self._initialize_components()
     
@@ -71,10 +75,11 @@ class GestureTrackerApp:
             if not self.cap.isOpened():
                 raise RuntimeError(f"Failed to open camera {self.camera_id}")
             
-            # Set camera properties
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            # Set camera properties (lower resolution for better performance)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             self.cap.set(cv2.CAP_PROP_FPS, 30)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer lag
             
             print("✓ Camera initialized")
             print("[GestureTrackerApp] All components initialized successfully")
@@ -92,8 +97,8 @@ class GestureTrackerApp:
             should_track: True to start tracking, False to stop.
         """
         self.is_tracking = should_track
-        if self.debug:
-            print(f"[GestureTrackerApp] Tracking toggled: {should_track}")
+        # if self.debug:
+        #     print(f"[GestureTrackerApp] Tracking toggled: {should_track}")
     
     def run(self):
         """Run the main application loop."""
@@ -109,10 +114,11 @@ class GestureTrackerApp:
                 # Get frame from camera
                 ret, frame = self.cap.read()
                 if not ret:
-                    if self.debug:
-                        print("✗ Failed to read from camera")
+                    # if self.debug:
+                    #     print("✗ Failed to read from camera")
                     continue
                 
+                self.frame_count += 1
                 frame_start_time = time.time()
                 
                 # Process frame only if tracking is enabled
@@ -120,35 +126,62 @@ class GestureTrackerApp:
                     # Mirror the frame (exactly like test_model.py)
                     frame = cv2.flip(frame, 1)
                     
-                    # Recognize gesture on full frame (exactly like test_model.py)
-                    gesture, gesture_confidence = self.recognizer.recognize(frame)
+                    # Run gesture recognition only every 2 frames (MAJOR performance boost)
+                    if self.frame_count % 2 == 0:
+                        gesture, gesture_confidence = self.recognizer.recognize(frame)
+                        self.last_gesture = gesture
+                        self.last_gesture_confidence = gesture_confidence
+                    else:
+                        # Reuse last result
+                        gesture = self.last_gesture
+                        gesture_confidence = self.last_gesture_confidence
                     
-                    # Run hand tracker for landmark drawing only
-                    try:
-                        frame, hand_data_list = self.hand_tracker.process_frame(frame)
-                    except Exception as e:
-                        if self.debug:
-                            print(f"✗ Error processing frame: {e}")
-                        hand_data_list = None
+                    # Run hand tracker every frame when landmarks enabled, otherwise every 2 frames
+                    # This prevents flickering while maintaining performance when landmarks are off
+                    should_run_tracker = self.hand_tracker.draw_landmarks or (self.frame_count % 2 == 0)
                     
-                    # Update UI hand count
-                    hand_count = len(hand_data_list) if hand_data_list else 0
-                    self.ui.update_hands_count(hand_count)
+                    if should_run_tracker:
+                        try:
+                            frame, hand_data_list = self.hand_tracker.process_frame(frame)
+                        except Exception as e:
+                            hand_data_list = None
+                    else:
+                        # Reuse last hand data when skipping frames
+                        hand_data_list = self.last_hand_data
                     
-                    # Update UI with gesture and confidence
-                    self.ui.update_gesture(gesture, gesture_confidence)
+                    # Cache hand data for next frame
+                    if hand_data_list is not None:
+                        self.last_hand_data = hand_data_list
+                        self.last_hand_data = hand_data_list
+                    
+                    # Update UI hand count (only every 6 frames to reduce overhead)
+                    if self.frame_count % 6 == 0 and hand_data_list:
+                        hand_count = len(hand_data_list)
+                        self.ui.update_hands_count(hand_count)
+                    
+                    # Update mouse position based on hand tracking (only when we have data)
+                    if hand_data_list and len(hand_data_list) > 0:
+                        first_hand = hand_data_list[0]
+                        palm_position = first_hand.get('palm_position')
+                        if palm_position:
+                            h, w, _ = frame.shape
+                            self.action_handler.move_mouse_to_hand(palm_position, w, h)
+                    
+                    # Update UI with gesture and confidence (only every 6 frames)
+                    if self.frame_count % 6 == 0:
+                        self.ui.update_gesture(gesture, gesture_confidence)
                     
                     # Only trigger actions with high confidence and accepted gestures
                     if gesture_confidence > 0.7 and gesture in self.action_handler.gesture_actions:
                         self.current_gesture = gesture
                         self.action_handler.handle_gesture(gesture)
-                        
-                        if self.debug:
-                            print(f"Gesture: {gesture} (confidence: {gesture_confidence:.3f})")
                     else:
                         self.current_gesture = gesture
                 else:
-                    self.ui.update_gesture("--", 0.0)
+                    # When not tracking, update UI more frequently for responsiveness
+                    if self.frame_count % 2 == 0:
+                        self.ui.update_gesture("--", 0.0)
+                        self.ui.update_hands_count(0)
                 
                 # Calculate and display FPS
                 frame_time = time.time() - frame_start_time
@@ -158,7 +191,16 @@ class GestureTrackerApp:
                 
                 avg_frame_time = sum(self.frame_times) / len(self.frame_times)
                 fps = 1.0 / avg_frame_time if avg_frame_time > 0 else 0
-                self.ui.update_fps(fps)
+                
+                # Update FPS more frequently when not tracking for better responsiveness
+                if self.is_tracking:
+                    # When tracking, update every 5 frames (performance)
+                    if self.frame_count % 5 == 0:
+                        self.ui.update_fps(fps)
+                else:
+                    # When not tracking, update every 2 frames (more responsive)
+                    if self.frame_count % 2 == 0:
+                        self.ui.update_fps(fps)
                 
                 # Display frame
                 cv2.imshow("Hand Gesture Tracker", frame)
@@ -170,8 +212,18 @@ class GestureTrackerApp:
                     break
                 elif key == ord(' '):
                     self.is_tracking = not self.is_tracking
-                    if self.debug:
-                        print(f"[GestureTrackerApp] Space pressed, tracking: {self.is_tracking}")
+                    # if self.debug:
+                    #     print(f"[GestureTrackerApp] Space pressed, tracking: {self.is_tracking}")
+                elif key == ord('m'):
+                    mouse_enabled = self.action_handler.toggle_mouse_control()
+                    self.ui.update_mouse_control_status(mouse_enabled)
+                    # if self.debug:
+                    #     print(f"[GestureTrackerApp] 'm' pressed, mouse control: {mouse_enabled}")
+                elif key == ord('i'):
+                    landmarks_enabled = self.hand_tracker.toggle_landmarks()
+                    self.ui.update_landmarks_status(landmarks_enabled)
+                    # if self.debug:
+                    #     print(f"[GestureTrackerApp] 'i' pressed, landmarks: {landmarks_enabled}")
         
         except KeyboardInterrupt:
             print("\n[GestureTrackerApp] Keyboard interrupt received")
@@ -210,6 +262,8 @@ def main():
     print("Controls:")
     print("  - Click 'Start Tracking' button to begin")
     print("  - Press SPACE to toggle tracking on/off")
+    print("  - Press 'm' to toggle mouse control on/off")
+    print("  - Press 'i' to toggle landmarks on/off")
     print("  - Press 'q' to quit")
     print("=" * 50)
     

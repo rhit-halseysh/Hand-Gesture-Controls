@@ -34,6 +34,7 @@ class HandTracker:
         self.detector = None
         self.gesture_recognizer = None
         self.use_gesture_recognition = use_gesture_recognition
+        self.draw_landmarks = False  # Landmark drawing can be toggled
         
         # Gesture smoothing buffer (prevents flickering)
         self.gesture_buffer_size = 15  # Number of frames to average over
@@ -54,40 +55,40 @@ class HandTracker:
         if self.use_gesture_recognition:
             self._setup_gesture_model()
         
-        if self.debug:
-            print("[HandTracker] Initialized")
+        # if self.debug:
+        #     print("[HandTracker] Initialized")
     
     def _setup_model(self):
         """Setup hand detection model, downloading if necessary."""
         # Check if model file exists, if not download it
         if not os.path.exists(self.MODEL_PATH):
-            if self.debug:
-                print(f"[HandTracker] Downloading model from {self.MODEL_URL}...")
+            # if self.debug:
+            #     print(f"[HandTracker] Downloading model from {self.MODEL_URL}...")
             urllib.request.urlretrieve(self.MODEL_URL, self.MODEL_PATH)
-            if self.debug:
-                print("[HandTracker] Model downloaded successfully")
+            # if self.debug:
+            #     print("[HandTracker] Model downloaded successfully")
         
         # Create hand landmarker with Tasks API
         base_options = python.BaseOptions(model_asset_path=self.MODEL_PATH)
         options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
         self.detector = vision.HandLandmarker.create_from_options(options)
-        if self.debug:
-            print("[HandTracker] Using MediaPipe Tasks API")
+        # if self.debug:
+        #     print("[HandTracker] Using MediaPipe Tasks API")
     
     def _setup_gesture_model(self):
         """Setup custom gesture recognition model."""
         try:
             if os.path.exists(self.GESTURE_MODEL_PATH):
                 self.gesture_recognizer = ResNetRecognizer(self.GESTURE_MODEL_PATH)
-                if self.debug:
-                    print(f"[HandTracker] Custom gesture model loaded from {self.GESTURE_MODEL_PATH}")
+                # if self.debug:
+                #     print(f"[HandTracker] Custom gesture model loaded from {self.GESTURE_MODEL_PATH}")
             else:
-                if self.debug:
-                    print(f"[HandTracker] Warning: Gesture model not found at {self.GESTURE_MODEL_PATH}")
+                # if self.debug:
+                #     print(f"[HandTracker] Warning: Gesture model not found at {self.GESTURE_MODEL_PATH}")
                 self.use_gesture_recognition = False
         except Exception as e:
-            if self.debug:
-                print(f"[HandTracker] Error loading gesture model: {e}")
+            # if self.debug:
+            #     print(f"[HandTracker] Error loading gesture model: {e}")
             self.use_gesture_recognition = False
     
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Optional[List[dict]]]:
@@ -149,13 +150,14 @@ class HandTracker:
                             hand_data['gesture_confidence'] = stable_confidence
                     hand_data_list.append(hand_data)
                     
-                    self._draw_landmarks(annotated_frame, landmark_list)
+                    if self.draw_landmarks:
+                        self._draw_landmarks(annotated_frame, landmark_list)
             
             return annotated_frame, hand_data_list if hand_data_list else None
         
         except Exception as e:
-            if self.debug:
-                print(f"[HandTracker] Fatal error in process_frame: {e}")
+            # if self.debug:
+            #     print(f"[HandTracker] Fatal error in process_frame: {e}")
             return frame, None
     
     def _draw_landmarks(self, frame: np.ndarray, landmarks: List[Tuple[int, int, float]]):
@@ -335,7 +337,19 @@ class HandTracker:
             
         return hand_region
     
+    def toggle_landmarks(self) -> bool:
+        """
+        Toggle landmark drawing on/off.
+        
+        Returns:
+            bool: Current state of landmark drawing (True = on, False = off).
+        """
+        self.draw_landmarks = not self.draw_landmarks
+        return self.draw_landmarks
+    
     def release(self):
         """Release resources."""
+        if self.detector:
+            self.detector.close()
         if self.debug:
             print("[HandTracker] Released resources")
