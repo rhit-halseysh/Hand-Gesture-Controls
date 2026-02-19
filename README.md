@@ -58,6 +58,7 @@ A window will open showing your webcam feed. Click **Start Tracking** in the UI 
 | `m`     | Toggle hand-as-mouse on/off   |
 | `i`     | Toggle hand landmark overlay  |
 | `q`     | Quit                          |
+| `g`     | Toggle between Gesture/ASL mode |
 
 ---
 
@@ -100,3 +101,7 @@ Additional mouse gestures (only active when mouse control is enabled):
 ## Landmark Overlay
 
 Press `i` to toggle the hand landmark skeleton drawn over the webcam feed.
+
+## ASL Mode
+
+Press `g` to switch between normal gesture mode and ASL recognition mode. In ASL mode, the model will attempt to recognize American Sign Language letters instead of the core gesture set.
