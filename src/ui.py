@@ -71,7 +71,7 @@ class GestureTrackerUI:
         separator = ttk.Separator(main_frame, orient="horizontal")
         separator.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
-        # Info section
+        # Current gesture info
         info_label = ttk.Label(
             main_frame,
             text="Current Gesture:",
@@ -88,12 +88,12 @@ class GestureTrackerUI:
         self.gesture_label.grid(row=4, column=1, sticky=tk.E, pady=5)
         
         # Confidence level info
-        confidence_label = ttk.Label(
+        confidence_header_label = ttk.Label(
             main_frame,
             text="Confidence:",
             font=("Arial", 10, "bold")
         )
-        confidence_label.grid(row=5, column=0, sticky=tk.W, pady=5)
+        confidence_header_label.grid(row=5, column=0, sticky=tk.W, pady=5)
         
         self.confidence_label = ttk.Label(
             main_frame,
@@ -102,30 +102,30 @@ class GestureTrackerUI:
             foreground="orange"
         )
         self.confidence_label.grid(row=5, column=1, sticky=tk.E, pady=5)
-        
-        # Confidence level info
-        confidence_label = ttk.Label(
+
+        # Mode info
+        mode_header_label = ttk.Label(
             main_frame,
-            text="Confidence:",
+            text="Mode:",
             font=("Arial", 10, "bold")
         )
-        confidence_label.grid(row=5, column=0, sticky=tk.W, pady=5)
-        
-        self.confidence_label = ttk.Label(
+        mode_header_label.grid(row=6, column=0, sticky=tk.W, pady=5)
+
+        self.mode_label = ttk.Label(
             main_frame,
-            text="0%",
+            text="GESTURE",
             font=("Arial", 10),
-            foreground="orange"
+            foreground="blue"
         )
-        self.confidence_label.grid(row=5, column=1, sticky=tk.E, pady=5)
+        self.mode_label.grid(row=6, column=1, sticky=tk.E, pady=5)
         
         # Frame rate info
-        fps_label = ttk.Label(
+        fps_header_label = ttk.Label(
             main_frame,
             text="FPS:",
             font=("Arial", 10, "bold")
         )
-        fps_label.grid(row=6, column=0, sticky=tk.W, pady=5)
+        fps_header_label.grid(row=7, column=0, sticky=tk.W, pady=5)
         
         self.fps_label = ttk.Label(
             main_frame,
@@ -133,15 +133,15 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="green"
         )
-        self.fps_label.grid(row=6, column=1, sticky=tk.E, pady=5)
+        self.fps_label.grid(row=7, column=1, sticky=tk.E, pady=5)
         
         # Hand count info
-        hands_label = ttk.Label(
+        hands_header_label = ttk.Label(
             main_frame,
             text="Hands Detected:",
             font=("Arial", 10, "bold")
         )
-        hands_label.grid(row=7, column=0, sticky=tk.W, pady=5)
+        hands_header_label.grid(row=8, column=0, sticky=tk.W, pady=5)
         
         self.hands_label = ttk.Label(
             main_frame,
@@ -149,15 +149,15 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="purple"
         )
-        self.hands_label.grid(row=7, column=1, sticky=tk.E, pady=5)
+        self.hands_label.grid(row=8, column=1, sticky=tk.E, pady=5)
         
         # Mouse control info
-        mouse_label = ttk.Label(
+        mouse_header_label = ttk.Label(
             main_frame,
             text="Mouse Control:",
             font=("Arial", 10, "bold")
         )
-        mouse_label.grid(row=8, column=0, sticky=tk.W, pady=5)
+        mouse_header_label.grid(row=9, column=0, sticky=tk.W, pady=5)
         
         self.mouse_control_label = ttk.Label(
             main_frame,
@@ -165,15 +165,15 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="red"
         )
-        self.mouse_control_label.grid(row=8, column=1, sticky=tk.E, pady=5)
+        self.mouse_control_label.grid(row=9, column=1, sticky=tk.E, pady=5)
         
         # Landmarks info
-        landmarks_label = ttk.Label(
+        landmarks_header_label = ttk.Label(
             main_frame,
             text="Landmarks:",
             font=("Arial", 10, "bold")
         )
-        landmarks_label.grid(row=9, column=0, sticky=tk.W, pady=5)
+        landmarks_header_label.grid(row=10, column=0, sticky=tk.W, pady=5)
         
         self.landmarks_label = ttk.Label(
             main_frame,
@@ -181,11 +181,11 @@ class GestureTrackerUI:
             font=("Arial", 10),
             foreground="red"
         )
-        self.landmarks_label.grid(row=9, column=1, sticky=tk.E, pady=5)
+        self.landmarks_label.grid(row=10, column=1, sticky=tk.E, pady=5)
         
         # Instructions
         instructions_frame = ttk.LabelFrame(main_frame, text="Instructions", padding="5")
-        instructions_frame.grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        instructions_frame.grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
         instructions_text = """
 • Click "Start Tracking" to begin
@@ -195,6 +195,7 @@ class GestureTrackerUI:
 • Motion detection for scrolling
 • Press 'm' to toggle mouse control
 • Press 'i' to toggle landmarks
+• Press 'g' to toggle gesture/ASL mode
         """
         
         instructions_label = ttk.Label(
@@ -216,13 +217,9 @@ class GestureTrackerUI:
         if self.is_tracking:
             self.status_label.config(text="Status: RUNNING", foreground="green")
             self.toggle_button.config(text="Stop Tracking")
-            # if self.debug:
-            #     print("[GestureTrackerUI] Tracking started")
         else:
             self.status_label.config(text="Status: STOPPED", foreground="red")
             self.toggle_button.config(text="Start Tracking")
-            # if self.debug:
-            #     print("[GestureTrackerUI] Tracking stopped")
         
         if self.on_toggle_callback:
             self.on_toggle_callback(self.is_tracking)
@@ -240,17 +237,15 @@ class GestureTrackerUI:
         """Update displayed gesture and confidence."""
         self.gesture_label.config(text=gesture_name)
         
-        # Update confidence with color coding
         confidence_percent = confidence * 100
         confidence_text = f"{confidence_percent:.1f}%"
         
-        # Color code confidence level
         if confidence >= 0.8:
-            color = "green"  # High confidence
+            color = "green"
         elif confidence >= 0.6:
-            color = "orange"  # Medium confidence  
+            color = "orange"
         else:
-            color = "red"  # Low confidence
+            color = "red"
             
         self.confidence_label.config(text=confidence_text, foreground=color)
     
@@ -275,6 +270,11 @@ class GestureTrackerUI:
             self.landmarks_label.config(text="ON", foreground="green")
         else:
             self.landmarks_label.config(text="OFF", foreground="red")
+
+    def update_mode_status(self, mode: str):
+        """Update displayed mode status (gesture or asl)."""
+        color = "blue" if mode == "gesture" else "purple"
+        self.mode_label.config(text=mode.upper(), foreground=color)
     
     def is_active(self) -> bool:
         """Check if tracking is active."""
@@ -299,5 +299,3 @@ class GestureTrackerUI:
             self.window.destroy()
         except tk.TclError:
             pass
-        # if self.debug:
-        #     print("[GestureTrackerUI] Closed")

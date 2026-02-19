@@ -29,6 +29,8 @@ class GestureTrackerApp:
         
         # Components
         self.hand_tracker: Optional[HandTracker] = None
+        self.grecognizer: Optional[ResNetRecognizer] = None
+        self.aslrecognizer: Optional[ResNetRecognizer] = None
         self.recognizer: Optional[ResNetRecognizer] = None
         self.action_handler: Optional[ActionHandler] = None
         self.ui: Optional[GestureTrackerUI] = None
@@ -43,6 +45,7 @@ class GestureTrackerApp:
         self.last_gesture = "no_gesture"
         self.last_gesture_confidence = 0.0
         self.last_hand_data = None
+        self.mode = 'gesture'  # 'gesture' or 'asl'
         
         # if self.debug:
         #     print("[GestureTrackerApp] Initializing...")
@@ -57,9 +60,16 @@ class GestureTrackerApp:
             print("✓ Hand tracker initialized")
             
             # Initialize gesture recognizer (exactly like test_model.py)
-            model_path = 'models/resnet18.pth'
-            self.recognizer = ResNetRecognizer(model_path)
+            gmodel_path = 'models/resnet18.pth'
+            self.grecognizer = ResNetRecognizer(gmodel_path)
             print("✓ Gesture recognizer initialized")
+            
+            # Initialize ASL recognizer
+            aslmodel_path = 'models/asl_resnet18_model.pth'
+            self.aslrecognizer = ResNetRecognizer(aslmodel_path)
+            print("✓ ASL recognizer initialized")
+
+            self.recognizer = self.grecognizer
             
             # Initialize action handler
             self.action_handler = ActionHandler(debug=self.debug)
@@ -224,6 +234,17 @@ class GestureTrackerApp:
                     self.ui.update_landmarks_status(landmarks_enabled)
                     # if self.debug:
                     #     print(f"[GestureTrackerApp] 'i' pressed, landmarks: {landmarks_enabled}")
+                elif key == ord('g'):
+                    if self.mode == 'gesture':
+                        self.mode = 'asl'
+                        self.recognizer = self.aslrecognizer
+                        print("[GestureTrackerApp] Switched to ASL mode")
+                        self.ui.update_mode_status(self.mode)
+                    else:
+                        self.mode = 'gesture'
+                        self.recognizer = self.grecognizer
+                        print("[GestureTrackerApp] Switched to Gesture mode")
+                        self.ui.update_mode_status(self.mode)
         
         except KeyboardInterrupt:
             print("\n[GestureTrackerApp] Keyboard interrupt received")
