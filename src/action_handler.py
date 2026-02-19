@@ -61,7 +61,7 @@ class ActionHandler:
         self.register_gesture_action('stop', self._close_comments)  # Stop gesture -> Close comments
         
         # Number gestures for navigation
-        self.register_gesture_action('one', self._select_comment_box)  # One finger -> Select comment box
+        # self.register_gesture_action('one', self._select_comment_box)  # One finger -> Select comment box
         self.register_gesture_action('two_up', self._post_comment)  # Two fingers up -> Post comment
         
         # Special gestures
@@ -77,7 +77,7 @@ class ActionHandler:
         self.register_gesture_action('rock', self._fullscreen_toggle)  # Rock gesture -> Fullscreen
         
         # Mouse click gestures (work when mouse control is enabled)
-        self.register_gesture_action('grabbing', self._left_click)  # Grabbing -> Left click
+        self.register_gesture_action('one', self._left_click)  # Grabbing -> Left click
         self.register_gesture_action('little_finger', self._right_click)  # Little finger -> Right click
         self.register_gesture_action('point', self._toggle_drag)  # Point -> Toggle drag
         
